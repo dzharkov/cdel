@@ -1,0 +1,26 @@
+<project name="atexant" default="jar" basedir=".">
+  <path id="classpath">
+    <pathelement location="."/>
+  </path>
+  <target name="clean">
+    <delete dir="build"/>
+    <delete dir="jar"/>
+  </target>
+  <target name="compile">
+    <mkdir dir="build"/>
+    <javac source="1.7" target="1.7" srcdir="java" destdir="build">
+      <classpath refid="classpath"/>
+    </javac>
+  </target>
+  <target name="jar" depends="compile">
+    <mkdir dir="jar"/>
+    <jar jarfile="jar/cdel.jar">
+      <manifest>
+        <attribute name="Main-Class" value="ru.tsu.inf.cdel.Main"/>
+      </manifest>
+      <fileset dir="./build">
+        <include name="**/*.class"/>
+      </fileset>
+    </jar>
+  </target>
+</project>

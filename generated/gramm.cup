@@ -1,0 +1,450 @@
+import java_cup.runtime.*;
+import ru.tsu.inf.cdel.ast.*;
+import java.util.LinkedList;
+
+parser code {: 
+    
+    LinkedList< String > errors;
+
+    public LinkedList< String > getErrors() {
+        return errors;
+    }
+    
+    protected int error_sync_size() {
+        return 20;
+    }
+
+    public void report_error(String message, Object info) {
+        errors.add(message);
+    }
+
+    public void report_fatal_error(String message, Object info) throws Exception {
+        throw new SyntaxFatalError(message);
+    }
+    
+    public void syntax_error(Symbol cur_token) {
+        report_error("Syntax error at: " + cur_token.value.toString(), null);
+    }
+    
+    public void unrecovered_syntax_error(Symbol cur_token) throws Exception {
+        syntax_error(cur_token);
+        report_fatal_error("Couldn't repair and continue parse", null);
+    }
+    
+:};
+
+init with {: 
+    errors = new LinkedList<>();
+:};
+
+terminal TerminalNode VAR,PROCEDURE,FUNCTION,ARRAY,WHILE,FOR,IF,ELSE,OR,DIV,MOD,AND,MAIN,LEFTPAR,RIGTHPAR,SEMICOLON,COMMA,EQUALS,COLON,DOTDOT,ASSIGN,NOT,NOTEQUAL,LESS,LESSOREQUAL,MORE,MOREOREQUAL,PLUS,MINUS,MULTIPLY,DIVIDE,LEFTBRACE,RIGHTBRACE,LEFTBRACKET,RIGHTBRACKET,OF;
+terminal TerminalNode INTEGER_LITERAL;
+terminal TerminalNode STRING_LITERAL, IDENT;
+terminal TerminalNode DOUBLE_LITERAL;
+
+non terminal ProgramNode program;
+non terminal BlockNode block;
+non terminal ListNode variable_declaration_part;
+non terminal ListNode variable_declaration_list;
+non terminal VariableDeclarationNode variable_declaration;
+non terminal ListNode procedure_and_function_declaration;
+non terminal ProcedureDeclarationNode procedure_declaration;
+non terminal FunctionDeclarationNode function_declaration;
+non terminal ListNode formal_parameter_list;
+non terminal FormalParameterSectionNode formal_parameter_section;
+non terminal ListNode statement_sequence;
+non terminal ASTNode statement;
+non terminal ASTNode simple_statement;
+non terminal ASTNode simple_statement_block;
+non terminal AssignmentStatementNode assignment_statement;
+non terminal ProcedureStatementNode procedure_statement;
+non terminal ASTNode structured_statement;
+non terminal ASTNode compound_statement;
+non terminal ForStatementNode repetitive_statement;
+non terminal ForStatementNode while_statement;
+non terminal ForStatementNode for_statement;
+non terminal IfStatementNode if_statement;
+non terminal ASTNode else_expression;
+non terminal ListNode actual_parameter_list;
+non terminal ExpressionNode expression;
+non terminal ExpressionNode simple_expression;
+non terminal ExpressionNode term;
+non terminal ExpressionNode factor;
+non terminal TerminalNode relational_operator;
+non terminal TerminalNode addition_operator;
+non terminal TerminalNode multiplication_operator;
+non terminal VariableNode variable;
+non terminal IndexedVariableNode indexed_variable;
+non terminal FunctionDesignatorNode function_designator;
+non terminal ASTNode type;
+non terminal SubrangeTypeNode subrange_type;
+non terminal ASTNode structured_type;
+non terminal ArrayTypeNode array_type;
+non terminal BuiltinTypeNode builtin_type;
+non terminal ListNode index_type_list;
+non terminal ListNode identifier_list;
+non terminal ListNode expression_list;
+non terminal LiteralNode number;
+non terminal TerminalNode sign;
+
+precedence left ELSE;
+
+program   ::=   variable_declaration_part:e1 procedure_and_function_declaration:e2 MAIN:e3 compound_statement:e4
+			 {: RESULT = new ProgramNode(e2, e1, e4); :}
+          		;
+
+
+block   ::=   variable_declaration_part:e1 compound_statement:e2
+			 {: RESULT = new BlockNode(e1, e2); :}
+          		;
+
+variable_declaration_part   ::=     {: RESULT = new ListNode(null, null); :}
+                                    |
+                                    VAR:e1 variable_declaration_list:e2
+                                    {: RESULT = e2; :}
+                                                ;
+
+
+variable_declaration_list   ::=   variable_declaration:e1 SEMICOLON:e2
+			 {: RESULT = new ListNode(e1, null); :}
+			|
+			variable_declaration:e1 SEMICOLON:e2 variable_declaration_list:e3
+			 {: RESULT = new ListNode(e1, e3); :}
+
+          		;
+
+
+variable_declaration   ::=   identifier_list:e3 COLON:e2  type:e1 
+			 {: RESULT = new VariableDeclarationNode(e1, e3); :}
+          		;
+
+
+procedure_and_function_declaration   ::=   
+			 {: RESULT = new ListNode(null,null); :}
+			|
+			procedure_declaration:e1 SEMICOLON:e2 procedure_and_function_declaration:e3
+			 {: RESULT = new ListNode(e1, e3); :}
+			|
+			function_declaration:e1 SEMICOLON:e2 procedure_and_function_declaration:e3
+			 {: RESULT = new ListNode(e1, e3); :}
+                        | error SEMICOLON
+          		;
+
+
+procedure_declaration   ::= PROCEDURE:e1 IDENT:e2 SEMICOLON:e3 block:e4
+			 {: RESULT = new ProcedureDeclarationNode(e2, new ListNode(null, null), e4); :}
+			|
+			PROCEDURE:e1 IDENT:e2 LEFTPAR:e3 formal_parameter_list:e4 RIGTHPAR:e5 SEMICOLON:e6 block:e7
+			 {: RESULT = new ProcedureDeclarationNode(e2, e4, e7); :}
+          		;
+
+
+function_declaration   ::=   FUNCTION:e1 IDENT:e2 COLON:e3 IDENT:e4 SEMICOLON:e5 block:e6
+			 {: RESULT = new FunctionDeclarationNode(e2, new ListNode(null, null), e4, e6); :}
+			|
+			FUNCTION:e1 IDENT:e2 LEFTPAR:e3 formal_parameter_list:e4 RIGTHPAR:e5 COLON:e6 IDENT:e7 SEMICOLON:e8 block:e9
+			 {: RESULT = new FunctionDeclarationNode(e2, e4, e7, e9); :}
+
+                        ;
+formal_parameter_list   ::=   formal_parameter_section:e1
+			 {: RESULT = new ListNode(e1, null); :}
+			|
+			formal_parameter_section:e1 SEMICOLON:e2 formal_parameter_list:e3
+			 {: RESULT = new ListNode(e1, e3); :}
+                        | error SEMICOLON
+          		;
+
+
+formal_parameter_section   ::=   identifier_list:e1 COLON:e2 IDENT:e3
+			 {: RESULT = new FormalParameterSectionNode(e1, e3); :}
+          		;
+
+
+statement_sequence   ::=   
+			 {: RESULT = new StatementSequenceNode(null, null); :}
+			|
+			statement:e1 statement_sequence:e2
+			 {: RESULT = new StatementSequenceNode(e1, e2); :}
+          		;
+
+
+statement   ::=   simple_statement_block:e1
+			 {: RESULT = e1; :}
+			|
+			structured_statement:e1
+			 {: RESULT = e1; :}
+          		;
+
+simple_statement_block ::= simple_statement:e1 SEMICOLON:e2
+			 {: RESULT = e1; :}
+                        | error SEMICOLON
+          		;
+
+simple_statement   ::=   assignment_statement:e1
+			 {: RESULT = e1; :}
+			|
+			procedure_statement:e1
+			 {: RESULT = e1; :}
+          		;
+
+
+assignment_statement   ::=   variable:e1 ASSIGN:e2 expression:e3
+			 {: RESULT = new AssignmentStatementNode(e1, e3, e2); :}
+          		;
+
+
+procedure_statement   ::=   IDENT:e1
+			 {: RESULT = new ProcedureStatementNode(e1, null); :}
+			|
+			IDENT:e1 LEFTPAR:e2 actual_parameter_list:e3 RIGTHPAR:e4
+			 {: RESULT = new ProcedureStatementNode(e1, e3); :}
+          		;
+
+
+structured_statement   ::=   compound_statement:e1
+			 {: RESULT = e1; :}
+			|
+			repetitive_statement:e1
+			 {: RESULT = e1; :}
+			|
+			if_statement:e1
+			 {: RESULT = e1; :}
+          		;
+
+
+compound_statement   ::=   LEFTBRACE:e1 statement_sequence:e2 RIGHTBRACE:e3
+			 {: RESULT = e2; :}
+          		;
+
+
+repetitive_statement   ::=  while_statement:e1
+			 {: RESULT = e1; :}
+			|
+			for_statement:e1
+			 {: RESULT = e1; :}
+          		;
+
+
+while_statement   ::=   WHILE:e1 LEFTPAR:e2 expression:e3 RIGTHPAR:e4 statement:e5
+			 {: RESULT = new ForStatementNode(null, e3, null, e5, e1); :}
+          		;
+
+
+for_statement   ::=   FOR:e1 LEFTPAR:e2 simple_statement:e3 SEMICOLON:e4 expression:e5 SEMICOLON:e6 simple_statement:e7 RIGTHPAR:e8 statement:e9
+			 {: RESULT = new ForStatementNode(e3, e5, e7, e9, e1); :}
+			|
+			FOR:e1 LEFTPAR:e2 SEMICOLON:e3 expression:e4 SEMICOLON:e5 simple_statement:e6 RIGTHPAR:e7 statement:e8
+			 {: RESULT = new ForStatementNode(null, e4, e6, e8, e1); :}
+			|
+			FOR:e1 LEFTPAR:e2 simple_statement:e3 SEMICOLON:e4 expression:e5 SEMICOLON:e6 RIGTHPAR:e7 statement:e8
+			 {: RESULT = new ForStatementNode(e3, e5, null, e8, e1); :}
+			|
+			FOR:e1 LEFTPAR:e2 SEMICOLON:e3 expression:e4 SEMICOLON:e5 RIGTHPAR:e6 statement:e7
+			 {: RESULT = new ForStatementNode(null, e4, null, e7, e1); :}
+          		;
+
+
+if_statement   ::=   IF:e1 LEFTPAR:e2 expression:e3 RIGTHPAR:e4 statement:e5 else_expression:e6
+			 {: RESULT = new IfStatementNode(e3, e5, e6, e1); :}
+          		;
+
+
+else_expression   ::=   
+			 {: RESULT = null; :}
+			|
+			ELSE:e1 statement:e2
+			 {: RESULT = e2; :}
+          		;
+
+
+actual_parameter_list   ::=
+                         {: RESULT = new ListNode(null, null); :}
+                        |
+                          expression:e1
+			 {: RESULT = new ListNode(e1, null); :}
+			|
+			expression:e1 COMMA:e2 actual_parameter_list:e3
+			 {: RESULT = new ListNode(e1, e3); :}
+          		;
+
+
+expression   ::=        sign:e1 simple_expression:e2
+			 {: RESULT = new UnaryOperatorNode(e1, e2); :}
+                        |
+                        simple_expression:e1
+                        {: RESULT = e1; :}
+                        |
+                        simple_expression:e1 relational_operator:e2 simple_expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+          		;
+
+simple_expression   ::=   term:e1
+			 {: RESULT = e1; :}
+			|
+			term:e1 addition_operator:e2 simple_expression:e3
+			 {: RESULT = new BinaryOperatorNode(e1, e2, e3); :}
+          		;
+
+
+term   ::=   factor:e1
+			 {: RESULT = e1; :}
+			|
+			factor:e1 multiplication_operator:e2 term:e3
+			 {: RESULT = new BinaryOperatorNode(e1, e2, e3); :}
+          		;
+
+
+factor   ::=   		variable:e1
+			 {: RESULT = e1; :}
+			|
+			number:e1
+			 {: RESULT = e1; :}
+			|
+			STRING_LITERAL:e1
+			 {: RESULT = new LiteralNode(LiteralNode.Type.STRING, e1); :}
+			|
+			function_designator:e1
+			 {: RESULT = e1; :}
+			|
+			LEFTPAR:e1 expression:e2 RIGTHPAR:e3
+			 {: RESULT = e2; :}
+			|
+			NOT:e1 factor:e2
+			 {: RESULT = new UnaryOperatorNode(e1, e2); :}
+          		;
+
+
+relational_operator   ::=   EQUALS:e1 /* NONCLASS */
+			 {: RESULT = e1; :}
+			|
+			NOTEQUAL:e1
+			 {: RESULT = e1; :}
+			|
+			LESS:e1
+			 {: RESULT = e1; :}
+			|
+			LESSOREQUAL:e1
+			 {: RESULT = e1; :}
+			|
+			MORE:e1
+			 {: RESULT = e1; :}
+			|
+			MOREOREQUAL:e1
+			 {: RESULT = e1; :}
+          		;
+
+
+addition_operator   ::=   PLUS:e1 /* NONCLASS */
+			 {: RESULT = e1; :}
+			|
+			MINUS:e1
+			 {: RESULT = e1; :}
+			|
+			OR:e1
+			 {: RESULT = e1; :}
+          		;
+
+
+multiplication_operator   ::=   MULTIPLY:e1 /* NONCLASS */
+			 {: RESULT = e1; :}
+			|
+			DIVIDE:e1
+			 {: RESULT = e1; :}
+			|
+			DIV:e1
+			 {: RESULT = e1; :}
+			|
+			MOD:e1
+			 {: RESULT = e1; :}
+			|
+			AND:e1
+			 {: RESULT = e1; :}
+          		;
+
+
+variable   ::=   IDENT:e1 /* NONCLASS */
+                        {: RESULT = new IdentVariableNode(e1); :}
+                        |
+			 indexed_variable:e1
+			 {: RESULT = e1; :}
+          		;
+
+
+indexed_variable   ::=   variable:e1 LEFTBRACKET:e2 expression_list:e3 RIGHTBRACKET:e4
+			 {: RESULT = new IndexedVariableNode(e1, e3, e2); :}
+          		;
+
+
+function_designator   ::=   IDENT:e1 LEFTPAR:e2 actual_parameter_list:e3 RIGTHPAR:e4
+			 {: RESULT = new FunctionDesignatorNode(e1, e3); :}
+          		;
+
+
+type   ::=   structured_type:e1
+			 {: RESULT = e1; :}
+			|
+			IDENT:e1
+			 {: RESULT = new SimpleTypeNode(e1); :}
+          		;
+
+subrange_type   ::=   INTEGER_LITERAL:e1 DOTDOT:e2 INTEGER_LITERAL:e3
+			 {: RESULT = new SubrangeTypeNode(e1, e3); :}
+          		;
+
+
+structured_type   ::=   array_type:e1
+			 {: RESULT = e1; :}
+			|
+			builtin_type:e1
+			 {: RESULT = e1; :}
+          		;
+
+
+array_type   ::=   ARRAY:e1 LEFTBRACKET:e2 index_type_list:e3 RIGHTBRACKET:e4 OF:e5 type:e6
+			 {: RESULT = new ArrayTypeNode(e3, e6); :}
+          		;
+
+
+index_type_list   ::=   subrange_type:e1
+			 {: RESULT = new ListNode(e1, null); :}
+			|
+			subrange_type:e1 COMMA:e2 index_type_list:e3
+			 {: RESULT = new ListNode(e1, e3); :}
+          		;
+
+
+builtin_type   ::=   IDENT:e1 OF:e2 identifier_list:e3
+			 {: RESULT = new BuiltinTypeNode(e1, e3); :}
+          		;
+
+
+identifier_list   ::=   IDENT:e1 
+			 {: RESULT = new ListNode(e1, null); :}
+			|
+			IDENT:e1 COMMA:e2 identifier_list:e3
+			 {: RESULT = new ListNode(e1, e3); :}
+          		;
+
+
+expression_list   ::=   expression:e1 
+			 {: RESULT = new ListNode(e1, null); :}
+			|
+			expression:e1 COMMA:e2 expression_list:e3
+			 {: RESULT = new ListNode(e1, e3); :}
+          		;
+
+
+number   ::=   INTEGER_LITERAL:e1 /* NONCLASS */
+			 {: RESULT = new LiteralNode(LiteralNode.Type.INTEGER, e1); :}
+			|
+			DOUBLE_LITERAL:e1
+			 {: RESULT = new LiteralNode(LiteralNode.Type.DOUBLE, e1); :}
+          		;
+
+
+sign   ::=   PLUS:e1 /* NONCLASS */
+                        {: RESULT = e1; :}
+			|
+			MINUS:e1
+                        {: RESULT = e1; :}
+          		;
