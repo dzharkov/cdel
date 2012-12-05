@@ -9,3 +9,4 @@ lib/
 
 generated/*.java
 Generated*.java
+*LexemeType.java
