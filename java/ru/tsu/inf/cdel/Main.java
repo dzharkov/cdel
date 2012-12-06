@@ -2,6 +2,7 @@ package ru.tsu.inf.cdel;
 import java.io.*;
 import java_cup.runtime.Symbol;
 import ru.tsu.inf.cdel.ast.ASTNode;
+import ru.tsu.inf.cdel.generator.JVMGeneratorVisitor;
 import ru.tsu.inf.cdel.lexer.Lexer;
 import ru.tsu.inf.cdel.lexer.LexicalError;
 import ru.tsu.inf.cdel.parser.GeneratedParser;
@@ -77,6 +78,9 @@ public class Main {
         }
         vis = typeCheckVisitor;
         printASTTree(root, "");
+        
+        JVMGeneratorVisitor visitor = new JVMGeneratorVisitor();
+        visitor.generate(args[0], "test", ".", root, declars, typeCheckVisitor);
         
     }
        

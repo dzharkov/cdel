@@ -33,6 +33,10 @@ public class Variables {
         return types.get(index);
     }
     
+    public String getNameByIndex(int index) {
+        return names.get(index);
+    }
+    
     public Type getTypeByName(String name) {
         return getTypeByIndex(variablesMap.get(name));
     }
