@@ -6,7 +6,9 @@ import java.util.List;
 import ru.tsu.inf.cdel.ast.*;
 import ru.tsu.inf.cdel.ast.visitor.ASTNodeVisitor;
 import ru.tsu.inf.cdel.semantical.function.Function;
+import ru.tsu.inf.cdel.semantical.function.ReadFunction;
 import ru.tsu.inf.cdel.semantical.function.SrcFunction;
+import ru.tsu.inf.cdel.semantical.function.WriteFunction;
 import ru.tsu.inf.cdel.semantical.type.*;
 
 public class DeclarationsVisitor extends ASTNodeVisitor {
@@ -20,6 +22,13 @@ public class DeclarationsVisitor extends ASTNodeVisitor {
     
     private int curRangeFrom,curRangeTo;
     
+    public static Function[] builtInFunctions = new Function[] {
+        new ReadFunction(PrimitiveTypeManager.getInstance().getTypeByName("integer")),
+        new ReadFunction(PrimitiveTypeManager.getInstance().getTypeByName("double")),
+        new ReadFunction(PrimitiveTypeManager.getInstance().getTypeByName("string")),
+        new WriteFunction(),
+    };
+    
     public DeclarationsVisitor() {
     }
 
@@ -27,6 +36,10 @@ public class DeclarationsVisitor extends ASTNodeVisitor {
     public void visit(ProgramNode node) {
         errors = new LinkedList<>();
         funcMap = new HashMap<>();
+        
+        for (Function f : builtInFunctions) {
+            funcMap.put(f.getName(), f);
+        }
         
         for (ASTNode funcDeclaration : node.getProcAndFunc().getChildren()) {
             funcDeclaration.accept(this);

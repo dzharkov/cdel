@@ -24,11 +24,12 @@ main {
 		i:=2;
 	}
 	a:=(i > 6) and (i < 6);
+	i := read_integer();
 	a:=('a+s' + 'sfs') != ('sd' + b);
 	if (a)  {
 	}
 	x[1,4] := x[i][i] div x[i mod 10, i div 1] + 1;
 	x[1][1] := 1;
 	b:=ii(1,2+2 - 1,'adsf');
-
+	write(b, i);
 }
