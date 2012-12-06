@@ -1,2 +1,2 @@
 #!/bin/bash
-java -cp /usr/share/java/cup.jar:jar/cdel.jar ru.tsu.inf.cdel.Main $@
+java -cp /usr/share/java/cup.jar:lib/bcel-5.2/bcel-5.2.jar:jar/cdel.jar ru.tsu.inf.cdel.Main $@
