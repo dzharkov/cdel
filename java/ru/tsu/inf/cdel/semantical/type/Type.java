@@ -17,6 +17,10 @@ public abstract class Type {
         return getId();
     }
     
+    public boolean equals(Type a) {
+        return getId().equals(a.getId());
+    }
+    
     public boolean canBeBinaryOperatorApplied(Operator op, Type p) {
         return false;
     }
