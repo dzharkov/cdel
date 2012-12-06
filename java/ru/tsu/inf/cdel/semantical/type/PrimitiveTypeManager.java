@@ -3,7 +3,6 @@ package ru.tsu.inf.cdel.semantical.type;
 import java.util.HashMap;
 import ru.tsu.inf.cdel.semantical.Operator;
 import ru.tsu.inf.cdel.semantical.SemanticalError;
-import sun.management.OperatingSystemImpl;
 
 public class PrimitiveTypeManager {
     private static HashMap< String, PrimitiveType> primitiveMap;
@@ -45,16 +44,14 @@ public class PrimitiveTypeManager {
         }
         
         for (int op1 : numbers) {
-            for (int op2 : numbers) {
-                for (int op : compOps) {
-                    binaryOperatorApplication[op][op1][op2] = PrimitiveType.BOOL;
-                }
-                int resType = (PrimitiveType.INTEGER == op1 && PrimitiveType.INTEGER == op2 ) ? PrimitiveType.INTEGER : PrimitiveType.DOUBLE;
-                binaryOperatorApplication[Operator.MINUS][op1][op2] = resType;
-                binaryOperatorApplication[Operator.PLUS][op1][op2] = resType;
-                binaryOperatorApplication[Operator.MULTIPLY][op1][op2] = resType;
-                binaryOperatorApplication[Operator.DIVIDE][op1][op2] = resType;
+            for (int op : compOps) {
+                binaryOperatorApplication[op][op1][op1] = PrimitiveType.BOOL;
             }
+            int resType = op1;
+            binaryOperatorApplication[Operator.MINUS][op1][op1] = resType;
+            binaryOperatorApplication[Operator.PLUS][op1][op1] = resType;
+            binaryOperatorApplication[Operator.MULTIPLY][op1][op1] = resType;
+            binaryOperatorApplication[Operator.DIVIDE][op1][op1] = resType;
             unaryOperatorApplication[Operator.UNARY_MINUS][op1]=op1;
         }
         
