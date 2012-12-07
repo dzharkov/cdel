@@ -12,6 +12,9 @@ public class WriteFunction extends Function {
 
     @Override
     public boolean checkApplicability(Type[] received, List<String> errors) {
+        if (received.length != 1) {
+            errors.add("wrong arguments amount");
+        }
         for (Type t: received) {
             if (!t.getId().contains("primitive_")) {
                 errors.add("Arguments should be primitive");

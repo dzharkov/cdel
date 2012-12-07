@@ -13,6 +13,7 @@ import ru.tsu.inf.cdel.semantical.function.Function;
 import ru.tsu.inf.cdel.semantical.function.ReadFunction;
 import ru.tsu.inf.cdel.semantical.function.WriteFunction;
 import ru.tsu.inf.cdel.semantical.type.PrimitiveType;
+import ru.tsu.inf.cdel.semantical.type.PrimitiveTypeManager;
 
 public class JVMGeneratorVisitor extends ASTNodeVisitor {
     private TypeCheckVisitor types;
@@ -24,7 +25,18 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
     private String className;
     
     private Type getJVMTypeByOurType(ru.tsu.inf.cdel.semantical.type.Type type) {
-        return Type.INT;
+        if (type instanceof PrimitiveType) {
+            if (type.equals(PrimitiveTypeManager.getInstance().getTypeByName("integer"))) {
+                return Type.INT;
+            }
+            if (type.equals(PrimitiveTypeManager.getInstance().getTypeByName("double"))) {
+                return Type.DOUBLE;
+            }
+            if (type.equals(PrimitiveTypeManager.getInstance().getTypeByName("string"))) {
+                return Type.STRING;
+            }
+        }
+        return new ObjectType("java.lang.Object");
     }
     
     private Type getTypeOfNode(ASTNode node) {
@@ -135,7 +147,18 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         if (func instanceof ReadFunction) {
             il.append(insF.createFieldAccess(className, "_input", new ObjectType("java.util.Scanner"),
                                         Constants.GETSTATIC));
-            il.append(insF.createInvoke("java.util.Scanner", "nextInt", Type.INT, 
+            
+            String postfix = "";
+            
+            if (func.getName().equalsIgnoreCase("read_integer")) {
+                postfix = "Int";
+            }
+            
+            if (func.getName().equalsIgnoreCase("read_double")) {
+                postfix = "Double";
+            }
+            
+            il.append(insF.createInvoke("java.util.Scanner", "next" + postfix, getJVMTypeByOurType(func.getReturnType()), 
                                  new Type[] {  },
                                  Constants.INVOKEVIRTUAL));
             return;

@@ -1,3 +1,5 @@
 main {
 	write(read_integer());
+        write(read_double());
+        write(read_string());
 }
