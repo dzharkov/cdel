@@ -21,6 +21,6 @@ public class ArrayDimension {
     }
     
     public int getLength() {
-        return to-from;
+        return to-from+1;
     }
 }
