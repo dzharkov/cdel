@@ -67,12 +67,6 @@ non terminal IfStatementNode if_statement;
 non terminal ASTNode else_expression;
 non terminal ListNode actual_parameter_list;
 non terminal ExpressionNode expression;
-non terminal ExpressionNode simple_expression;
-non terminal ExpressionNode term;
-non terminal ExpressionNode factor;
-non terminal TerminalNode relational_operator;
-non terminal TerminalNode addition_operator;
-non terminal TerminalNode multiplication_operator;
 non terminal VariableNode variable;
 non terminal IndexedVariableNode indexed_variable;
 non terminal FunctionDesignatorNode function_designator;
@@ -88,6 +82,9 @@ non terminal LiteralNode number;
 non terminal TerminalNode sign;
 
 precedence left ELSE;
+precedence left PLUS, MINUS;
+precedence left DIV, MULTIPLY, DIVIDE, MOD, AND;
+precedence left EQUALS,NOTEQUAL,LESS,LESSOREQUAL,MORE,MOREOREQUAL, OR;
 
 program   ::=   variable_declaration_part:e1 procedure_and_function_declaration:e2 MAIN:e3 compound_statement:e4
 			 {: RESULT = new ProgramNode(e2, e1, e4); :}
@@ -266,35 +263,53 @@ actual_parameter_list   ::=
 			expression:e1 COMMA:e2 actual_parameter_list:e3
 			 {: RESULT = new ListNode(e1, e3); :}
           		;
-
-
-expression   ::=        sign:e1 simple_expression:e2
+ 
+expression   ::=        sign:e1 expression:e2
 			 {: RESULT = new UnaryOperatorNode(e1, e2); :}
                         |
-                        simple_expression:e1
-                        {: RESULT = e1; :}
-                        |
-                        simple_expression:e1 relational_operator:e2 simple_expression:e3
+                        expression:e1 AND:e2 expression:e3
 			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
-          		;
-
-simple_expression   ::=   term:e1
-			 {: RESULT = e1; :}
-			|
-			term:e1 addition_operator:e2 simple_expression:e3
-			 {: RESULT = new BinaryOperatorNode(e1, e2, e3); :}
-          		;
-
-
-term   ::=   factor:e1
-			 {: RESULT = e1; :}
-			|
-			factor:e1 multiplication_operator:e2 term:e3
-			 {: RESULT = new BinaryOperatorNode(e1, e2, e3); :}
-          		;
-
-
-factor   ::=   		variable:e1
+                        |
+                        expression:e1 MULTIPLY:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 MOD:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 DIV:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 DIVIDE:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 OR:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 MINUS:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 PLUS:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 MOREOREQUAL:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 MORE:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 LESSOREQUAL:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 LESS:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 EQUALS:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        expression:e1 NOTEQUAL:e2 expression:e3
+			 {: RESULT =  new BinaryOperatorNode(e1, e2, e3); :}
+                        |
+                        variable:e1
 			 {: RESULT = e1; :}
 			|
 			number:e1
@@ -309,58 +324,10 @@ factor   ::=   		variable:e1
 			LEFTPAR:e1 expression:e2 RIGTHPAR:e3
 			 {: RESULT = e2; :}
 			|
-			NOT:e1 factor:e2
+			NOT:e1 expression:e2
 			 {: RESULT = new UnaryOperatorNode(e1, e2); :}
+          		
           		;
-
-
-relational_operator   ::=   EQUALS:e1 /* NONCLASS */
-			 {: RESULT = e1; :}
-			|
-			NOTEQUAL:e1
-			 {: RESULT = e1; :}
-			|
-			LESS:e1
-			 {: RESULT = e1; :}
-			|
-			LESSOREQUAL:e1
-			 {: RESULT = e1; :}
-			|
-			MORE:e1
-			 {: RESULT = e1; :}
-			|
-			MOREOREQUAL:e1
-			 {: RESULT = e1; :}
-          		;
-
-
-addition_operator   ::=   PLUS:e1 /* NONCLASS */
-			 {: RESULT = e1; :}
-			|
-			MINUS:e1
-			 {: RESULT = e1; :}
-			|
-			OR:e1
-			 {: RESULT = e1; :}
-          		;
-
-
-multiplication_operator   ::=   MULTIPLY:e1 /* NONCLASS */
-			 {: RESULT = e1; :}
-			|
-			DIVIDE:e1
-			 {: RESULT = e1; :}
-			|
-			DIV:e1
-			 {: RESULT = e1; :}
-			|
-			MOD:e1
-			 {: RESULT = e1; :}
-			|
-			AND:e1
-			 {: RESULT = e1; :}
-          		;
-
 
 variable   ::=   IDENT:e1 /* NONCLASS */
                         {: RESULT = new IdentVariableNode(e1); :}
