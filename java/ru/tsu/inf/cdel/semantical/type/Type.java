@@ -30,7 +30,7 @@ public abstract class Type {
     }
     
     public boolean canBeUnaryOperatorApplied(Operator op) {
-        return false;
+        return getTypeAfterUnaryOperatopApplied(op) != null;
     }
     
     public Type getTypeAfterUnaryOperatopApplied(Operator op) {
