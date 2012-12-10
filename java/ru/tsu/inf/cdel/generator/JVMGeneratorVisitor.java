@@ -7,6 +7,7 @@ import org.apache.bcel.Constants;
 import ru.tsu.inf.cdel.ast.*;
 import ru.tsu.inf.cdel.ast.visitor.ASTNodeVisitor;
 import ru.tsu.inf.cdel.semantical.DeclarationsVisitor;
+import ru.tsu.inf.cdel.semantical.Operator;
 import ru.tsu.inf.cdel.semantical.TypeCheckVisitor;
 import ru.tsu.inf.cdel.semantical.Variables;
 import ru.tsu.inf.cdel.semantical.function.Function;
@@ -23,18 +24,17 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
     private InstructionList il;
     private InstructionFactory insF;
     private String className;
+    private ASTNode assignExpression = null;
     
     private Type getJVMTypeByOurType(ru.tsu.inf.cdel.semantical.type.Type type) {
         if (type instanceof PrimitiveType) {
-            if (type.equals(PrimitiveTypeManager.getInstance().getTypeByName("integer"))) {
-                return Type.INT;
-            }
             if (type.equals(PrimitiveTypeManager.getInstance().getTypeByName("double"))) {
                 return Type.DOUBLE;
             }
             if (type.equals(PrimitiveTypeManager.getInstance().getTypeByName("string"))) {
                 return Type.STRING;
             }
+            return Type.INT;
         }
         return new ObjectType("java.lang.Object");
     }
@@ -52,6 +52,18 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         Type jvmType = getJVMTypeByOurType(type);
         
         addField(name, jvmType);
+    }
+    
+    private InstructionHandle appendInstruction(Instruction ins) {
+        InstructionHandle result = il.append(ins);
+        il.update();
+        return result;
+    }
+    
+    private InstructionHandle appendInstruction(CompoundInstruction ins) {
+        InstructionHandle result = il.append(ins);
+        il.update();
+        return result;
     }
     
     public void generate(String sourceFilename, String className, String path, ASTNode root, DeclarationsVisitor declars, TypeCheckVisitor types) throws IOException{
@@ -81,16 +93,16 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         il = new InstructionList();
         addField("_input", new ObjectType("java.util.Scanner"));
         
-        il.append(insF.createNew("java.util.Scanner"));
-        il.append(InstructionConstants.DUP);
-        il.append(insF.createFieldAccess("java.lang.System", "in", new ObjectType("java.io.InputStream"),
+        appendInstruction(insF.createNew("java.util.Scanner"));
+        appendInstruction(InstructionConstants.DUP);
+        appendInstruction(insF.createFieldAccess("java.lang.System", "in", new ObjectType("java.io.InputStream"),
                                         Constants.GETSTATIC));
-        il.append(insF.createInvoke("java.util.Scanner", "<init>", Type.VOID,
+        appendInstruction(insF.createInvoke("java.util.Scanner", "<init>", Type.VOID,
                                  new Type[] {new ObjectType("java.io.InputStream")},
                                  Constants.INVOKESPECIAL));
-        il.append(insF.createPutStatic(className, "_input", new ObjectType("java.util.Scanner")));
+        appendInstruction(insF.createPutStatic(className, "_input", new ObjectType("java.util.Scanner")));
         node.getStatement().accept(this);
-        il.append(InstructionConstants.RETURN);
+        appendInstruction(InstructionConstants.RETURN);
         MethodGen mg = new MethodGen(Constants.ACC_PUBLIC | Constants.ACC_STATIC,
                                      Type.VOID, new Type[] { 
                                        new ArrayType(Type.STRING, 1) 
@@ -123,7 +135,7 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
             ins = new PUSH(cg.getConstantPool(), node.getTerminal().getLexemeValue());
         }
         
-        il.append(ins);
+        appendInstruction(ins);
     }
     
     private void pushExpressions(ASTNode[] expressions) {
@@ -133,10 +145,10 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
     }
     
     private void writeFunctionCall(ASTNode expr) {
-        il.append(insF.createFieldAccess("java.lang.System", "out", new ObjectType("java.io.PrintStream"),
+        appendInstruction(insF.createFieldAccess("java.lang.System", "out", new ObjectType("java.io.PrintStream"),
                                         Constants.GETSTATIC));
         expr.accept(this);
-        il.append(insF.createInvoke("java.io.PrintStream", "println", Type.VOID, 
+        appendInstruction(insF.createInvoke("java.io.PrintStream", "println", Type.VOID, 
                              new Type[] { getTypeOfNode(expr) },
                              Constants.INVOKEVIRTUAL));
     }
@@ -145,7 +157,7 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         Function func = declars.getFuncMap().get(name);
 
         if (func instanceof ReadFunction) {
-            il.append(insF.createFieldAccess(className, "_input", new ObjectType("java.util.Scanner"),
+            appendInstruction(insF.createFieldAccess(className, "_input", new ObjectType("java.util.Scanner"),
                                         Constants.GETSTATIC));
             
             String postfix = "";
@@ -158,7 +170,7 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
                 postfix = "Double";
             }
             
-            il.append(insF.createInvoke("java.util.Scanner", "next" + postfix, getJVMTypeByOurType(func.getReturnType()), 
+            appendInstruction(insF.createInvoke("java.util.Scanner", "next" + postfix, getJVMTypeByOurType(func.getReturnType()), 
                                  new Type[] {  },
                                  Constants.INVOKEVIRTUAL));
             return;
@@ -180,5 +192,218 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
     public void visit(ProcedureStatementNode node) {
         functionCall(node.getIdent().getLexemeValue(), node.getList().getChildren());
     }
+
+    @Override
+    public void visit(IdentVariableNode node) {
+        String name = node.getIdent().getLexemeValue();
+        
+        boolean is_local = false;
+        
+        if (locals.ifExists(name)) {
+            is_local = true;
+        }
+        
+        if (assignExpression != null) {
+            ASTNode expr = assignExpression;
+            assignExpression = null;
+            
+            expr.accept(this);
+            
+            if (is_local) {
+                
+            } else {
+                appendInstruction(insF.createPutStatic(className, name, getTypeOfNode(expr)));
+            }
+        } else {
+            if (is_local) {
+                
+            } else {
+                appendInstruction(insF.createGetStatic(className, name, getTypeOfNode(node)));
+            }
+        }
+    }
     
+    private void addCMPInstruction(BranchInstruction ins, int trueValue) {
+        trueValue = 1-trueValue;
+        il.append(ins);
+        il.append(new ICONST(trueValue));
+        final GOTO gt = new GOTO(null);
+        il.append(gt);
+        il.append(new ICONST(1 - trueValue));
+        ins.setTarget(il.getEnd());
+        il.addObserver(new InstructionListObserver() {
+            @Override
+            public void notify(InstructionList il) {
+                if (gt.getTarget() == null) {
+                    gt.setTarget(il.getEnd());
+                }
+            }
+        });
+    }
+
+    @Override
+    public void visit(BinaryOperatorNode node) {
+        Operator op = Operator.createByString(node.getOp().getLexemeValue(), false);
+        
+        Type type = getTypeOfNode(node.getA());
+        
+        node.getA().accept(this);
+        node.getB().accept(this);
+        
+        if (op.getType() == Operator.LESS 
+            || op.getType() == Operator.LESSOREQUAL 
+            || op.getType() == Operator.EQUALS
+            || op.getType() == Operator.MORE
+            || op.getType() == Operator.MOREOREQUAL
+            || op.getType() == Operator.NOTEQUALS) {
+            
+            if (type.equals(Type.INT)) {
+                BranchInstruction ins = null;
+                
+                switch (op.getType()) {
+                    case Operator.LESS:
+                        ins = new IF_ICMPLT(null);
+                        break;
+                    case Operator.LESSOREQUAL:
+                        ins = new IF_ICMPLE(null);
+                        break;
+                    case Operator.EQUALS:
+                        ins = new IF_ICMPEQ(null);
+                        break;
+                    case Operator.MORE:
+                        ins = new IF_ICMPGT(null);
+                        break;
+                    case Operator.MOREOREQUAL:
+                        ins = new IF_ICMPGE(null);
+                        break;
+                    case Operator.NOTEQUALS:
+                        ins = new IF_ICMPNE(null);
+                        break;
+                }
+                
+                addCMPInstruction(ins, 1);
+            }
+            
+            if (type.equals(Type.DOUBLE)) {
+                appendInstruction(new DCMPL());
+                int compareValue;
+                int trueValue;
+                switch (op.getType()) {
+                    case Operator.LESS:
+                        compareValue = -1; trueValue = 1;
+                        break;
+                    case Operator.LESSOREQUAL:
+                        compareValue = 1; trueValue = 0;
+                        break;
+                    case Operator.EQUALS:
+                        compareValue = 0; trueValue = 1;
+                        break;
+                    case Operator.MORE:
+                        compareValue = 1; trueValue = 1;
+                        break;
+                    case Operator.MOREOREQUAL:
+                        compareValue = -1; trueValue = 0;
+                        break;
+                    case Operator.NOTEQUALS:
+                        compareValue = 0; trueValue = 0;
+                        break;
+                    default:
+                        compareValue = 0; trueValue = 0;
+                        break;
+                }
+                
+                appendInstruction(new ICONST(compareValue));
+                
+                addCMPInstruction(new IF_ICMPEQ(null), trueValue);
+            }
+            
+            //TODO: strings
+            return;
+        }
+        Instruction opIns = null;
+        
+        if (type.equals(Type.INT)) {
+            switch (op.getType()) {
+                case Operator.AND:
+                    opIns = new IAND();
+                    break;
+                case Operator.OR:
+                    opIns = new IOR();
+                    break;
+                case Operator.DIV:
+                    opIns = new IDIV();
+                    break;
+                case Operator.DIVIDE:
+                    opIns = new IDIV();
+                    break;
+                case Operator.MINUS:
+                    opIns = new ISUB();
+                    break;
+                case Operator.MOD:
+                    opIns = new IREM();
+                    break;
+                case Operator.MULTIPLY:
+                    opIns = new IMUL();
+                    break;
+                case Operator.PLUS:
+                    opIns = new IADD();
+                    break;
+                default:
+                    opIns = null;
+                    break;
+            }
+        }
+        
+        if (type.equals(Type.DOUBLE)) {
+            switch (op.getType()) {
+                case Operator.DIVIDE:
+                    opIns = new DDIV();
+                    break;
+                case Operator.MINUS:
+                    opIns = new DSUB();
+                    break;
+                case Operator.MULTIPLY:
+                    opIns = new DMUL();
+                    break;
+                case Operator.PLUS:
+                    opIns = new DADD();
+                    break;
+                default:
+                    opIns = null;
+                    break;
+            }
+        }
+        
+        appendInstruction(opIns);
+    }
+
+    @Override
+    public void visit(UnaryOperatorNode node) {
+        Type type = getTypeOfNode(node);
+        
+        node.getB().accept(this);
+        
+        Operator op = Operator.createByString(node.getOp().getLexemeValue(), true);
+        
+        Instruction ins = null;
+        
+        if (op.getType() == Operator.UNARY_MINUS) {
+            if (type.equals(Type.DOUBLE)) {
+                ins = new DNEG();
+            } else {
+                ins = new INEG();
+            }
+        } else if (op.getType() == Operator.NOT) {
+            appendInstruction(new ICONST(1));
+            ins = new IXOR();
+        }
+        
+        appendInstruction(ins);
+    }
+
+    @Override
+    public void visit(AssignmentStatementNode node) {
+        assignExpression = node.getExpression();
+        node.getVariable().accept(this);
+    }
 }
