@@ -35,6 +35,11 @@ public class PrimitiveType extends Type {
         
         return PrimitiveTypeManager.getInstance().getTypeOfBinaryOperatorApplication(op, typeId, ((PrimitiveType)p).getTypeId());
     }
+    
+    @Override
+    public Type getTypeAfterUnaryOperatopApplied(Operator op) {
+        return PrimitiveTypeManager.getInstance().getTypeOfUnaryOperatorApplication(op, typeId);
+    }
 
     @Override
     public String toString() {
