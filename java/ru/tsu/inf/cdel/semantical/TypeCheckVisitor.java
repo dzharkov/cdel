@@ -113,7 +113,7 @@ public class TypeCheckVisitor extends ASTNodeVisitor {
     public void visit(BinaryOperatorNode node) {
         Type aType = getTypeOfNode(node.getA());
         Type bType = getTypeOfNode(node.getB());
-        Operator op = Operator.createByString(node.getOp().getLexemeValue());
+        Operator op = Operator.createByString(node.getOp().getLexemeValue(), false);
         
         if (!aType.canBeBinaryOperatorApplied(op, bType)) {
             errors.add(new SemanticalError("there is now binary operation '" + node.getOp().getLexemeValue() + "' defined for " + aType + " and " + bType, node.getOp()));
@@ -127,7 +127,7 @@ public class TypeCheckVisitor extends ASTNodeVisitor {
     @Override
     public void visit(UnaryOperatorNode node) {
         Type aType = getTypeOfNode(node.getB());
-        Operator op = Operator.createByString(node.getOp().getLexemeValue());
+        Operator op = Operator.createByString(node.getOp().getLexemeValue(), true);
         
         if (!aType.canBeUnaryOperatorApplied(op)) {
             errors.add(new SemanticalError("there is now unary operation '" + node.getOp().toString() + "' defined for " + aType, node.getOp()));

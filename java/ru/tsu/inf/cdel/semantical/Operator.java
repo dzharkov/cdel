@@ -32,7 +32,13 @@ public class Operator {
       return o.type == type;
   }
   
-  public static Operator createByString(String s) {
+  public static Operator createByString(String s, boolean unary) {
+      if (s.equals("-")) {
+          if (unary) {
+              return new Operator(UNARY_MINUS);
+          }
+          return new Operator(MINUS);
+      }
       for (int i = 0; i < representations.length; i++) {
           if (representations[i].equalsIgnoreCase(s)) {
               return new Operator(i);
