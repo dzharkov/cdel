@@ -26,6 +26,20 @@ public class ArrayType extends Type {
     public Type getOfType() {
         return ofType;
     }
+    
+    public Type getTypeAfterIndexing(int times) {
+        if (times == dims.length) {
+            return ofType;
+        }
+        
+        ArrayDimension[] newDims = new ArrayDimension[dims.length - times];
+        
+        for (int i = times; i < dims.length; i++) {
+            newDims[i - times]=dims[i];
+        }
+        
+        return new ArrayType(newDims, ofType);
+    }
 
     @Override
     public Type getTypeAfterIndexing(Type[] types, List< String > errors) {
@@ -44,16 +58,6 @@ public class ArrayType extends Type {
             return null;
         }
         
-        if (types.length == dims.length) {
-            return ofType;
-        }
-        
-        ArrayDimension[] newDims = new ArrayDimension[dims.length - types.length];
-        
-        for (int i = types.length; i < types.length; i++) {
-            newDims[i - types.length]=dims[i];
-        }
-        
-        return new ArrayType(newDims, ofType);
+        return getTypeAfterIndexing(types.length);
     }
 }
