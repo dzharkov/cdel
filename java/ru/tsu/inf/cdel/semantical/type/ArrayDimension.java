@@ -19,5 +19,8 @@ public class ArrayDimension {
     public int getTo() {
         return to;
     }
-
+    
+    public int getLength() {
+        return to-from;
+    }
 }
