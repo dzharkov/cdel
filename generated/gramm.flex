@@ -46,7 +46,7 @@ Identifier = [:jletter:] [:jletterdigit:]*
 Sign = [+-]
 
 DecIntegerLiteral = (0 | [1-9][0-9]*)
-DecDoubleLiteral = (0 | [1-9][0-9]*)  "." [1-9][0-9]*
+DecDoubleLiteral = (0 | [1-9][0-9]*)  "." [0-9]*
 
 %state STRING
 
