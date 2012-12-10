@@ -1,0 +1,26 @@
+var
+a,b,c,d,e: integer;
+x,y,z: double;
+u,v: bool;
+main {
+    a:=5;
+    b:=2;
+    c:=3;
+    d:=(a+b+c) mod 5;
+    write(d);
+    d:=d mod 2 + 6;
+    write(d);
+    e:=d*(-c)*(-1) div c;
+    write(e);
+    x:=1.0;
+    y:=2.0;
+
+    z:=x*y - x/y;
+    
+    z:=3.5;
+    u:=(z > 3.0) and !(e < 7) and !(e <= 6) and (e > 5) and (e >= 6) and (e < 6 or (1 == 1));
+    v:=1==1;
+    write(u);
+    write(v);
+    write(u and v);
+}
