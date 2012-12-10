@@ -487,4 +487,47 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         assignExpression = node.getExpression();
         node.getVariable().accept(this);
     }
+
+    @Override
+    public void visit(IfStatementNode node) {
+        node.getCondition().accept(this);
+        
+        appendInstruction(new ICONST(0));
+        
+        final IF_ICMPEQ ins = new IF_ICMPEQ(null);
+        
+        il.append(ins);
+        
+        node.getThenStatement().accept(this);
+        
+        if (node.getElseStatement() != null) {
+            final GOTO beforeElse = new GOTO(null);
+            InstructionHandle beforeElseHandle = il.append(beforeElse);
+            
+            node.getElseStatement().accept(this);
+            
+            il.addObserver(new InstructionListObserver() {
+
+                @Override
+                public void notify(InstructionList il) {
+                    if (beforeElse.getTarget() == null) {
+                        beforeElse.setTarget(il.getEnd());
+                    }
+                }
+            });
+            
+            ins.setTarget(beforeElseHandle.getNext());
+        } else {
+            il.addObserver(new InstructionListObserver() {
+
+                @Override
+                public void notify(InstructionList il) {
+                    if (ins.getTarget() == null) {
+                        ins.setTarget(il.getEnd());
+                    }
+                }
+            });
+        }
+        
+    }
 }
