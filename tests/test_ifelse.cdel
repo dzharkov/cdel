@@ -1,0 +1,22 @@
+main {
+    if (2 > 1) {
+        write(1);
+    } else {
+        write(2);
+    }
+
+    if (2 < 1) {
+        write(1);
+    } else {
+        write(2);
+    }
+
+    if (2 > 1) {
+        write(3);
+    }
+    write(4);
+    if (1 > 2) {
+        write(5);
+    }
+    write(6);
+}
