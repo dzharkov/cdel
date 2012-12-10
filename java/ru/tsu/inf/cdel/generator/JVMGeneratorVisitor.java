@@ -36,6 +36,10 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
             }
             return Type.INT;
         }
+        if (type instanceof ru.tsu.inf.cdel.semantical.type.ArrayType) {
+            ru.tsu.inf.cdel.semantical.type.ArrayType arrayType = (ru.tsu.inf.cdel.semantical.type.ArrayType)type;
+            return new ArrayType(getJVMTypeByOurType(arrayType.getOfType()), arrayType.getDims().length);
+        }
         return new ObjectType("java.lang.Object");
     }
     
@@ -87,6 +91,15 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         root.accept(this);
         cg.getJavaClass().dump(path + "/" + className + ".class");
     }
+    
+    private void appendArrayCreation(ru.tsu.inf.cdel.semantical.type.ArrayType type) {
+        for (int i = 0; i < type.getDims().length; i++) {
+            appendInstruction(insF.createConstant(type.getDims()[i].getLength()));
+            
+        }
+               
+        appendInstruction(new MULTIANEWARRAY(cg.getConstantPool().addArrayClass((ArrayType)getJVMTypeByOurType(type)), (short)type.getDims().length));
+    }
  
     @Override
     public void visit(ProgramNode node) {
@@ -101,6 +114,16 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
                                  new Type[] {new ObjectType("java.io.InputStream")},
                                  Constants.INVOKESPECIAL));
         appendInstruction(insF.createPutStatic(className, "_input", new ObjectType("java.util.Scanner")));
+        
+        for (int i = 0; i < globals.getAmount(); i++) {
+            ru.tsu.inf.cdel.semantical.type.Type type = globals.getTypeByIndex(i);
+            if (type instanceof ru.tsu.inf.cdel.semantical.type.ArrayType) {
+                ru.tsu.inf.cdel.semantical.type.ArrayType arrayType = (ru.tsu.inf.cdel.semantical.type.ArrayType)type;
+                appendArrayCreation(arrayType);
+                appendInstruction(insF.createPutStatic(className, globals.getNameByIndex(i), getJVMTypeByOurType(type)));
+            }
+        }
+        
         node.getStatement().accept(this);
         appendInstruction(InstructionConstants.RETURN);
         MethodGen mg = new MethodGen(Constants.ACC_PUBLIC | Constants.ACC_STATIC,
@@ -221,6 +244,64 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
                 appendInstruction(insF.createGetStatic(className, name, getTypeOfNode(node)));
             }
         }
+    }
+
+    @Override
+    public void visit(IndexedVariableNode node) {
+        ASTNode expr = assignExpression;
+        assignExpression = null;
+        
+        ru.tsu.inf.cdel.semantical.type.Type type = types.getType(node.getVariable());
+        
+        if (type instanceof ru.tsu.inf.cdel.semantical.type.ArrayType) {
+            ru.tsu.inf.cdel.semantical.type.ArrayType arrayType = (ru.tsu.inf.cdel.semantical.type.ArrayType)type;
+            
+            node.getVariable().accept(this);
+            
+            ASTNode[] indexes = node.getList().getChildren();
+            int i;
+            for (i = 0; i < indexes.length-1; i++) {
+                indexes[i].accept(this);
+                appendInstruction(insF.createConstant(arrayType.getDims()[i].getFrom()));
+                appendInstruction(new ISUB());
+                appendInstruction(new AALOAD());
+            }
+            
+            indexes[i].accept(this);
+            appendInstruction(insF.createConstant(arrayType.getDims()[i].getFrom()));
+            appendInstruction(new ISUB());
+            
+            Instruction lastInstruction = null;
+            
+            if (expr!=null) {
+                expr.accept(this);
+
+                Type exprType = getTypeOfNode(expr);
+                               
+                if (exprType.equals(Type.INT)) {
+                    lastInstruction = new IASTORE();
+                } else if (exprType.equals(Type.DOUBLE)) {
+                    lastInstruction = new DASTORE();
+                } else {
+                    lastInstruction = new AASTORE();
+                }
+
+            } else {
+                Type typeOf = getJVMTypeByOurType(arrayType.getTypeAfterIndexing(indexes.length));
+                
+                if (typeOf.equals(Type.INT)) {
+                    lastInstruction = new IALOAD();
+                } else if (typeOf.equals(Type.DOUBLE)) {
+                    lastInstruction = new DALOAD();
+                } else {
+                    lastInstruction = new AALOAD();
+                }
+                
+            }
+            
+            appendInstruction(lastInstruction);
+        }
+        
     }
     
     private void addCMPInstruction(BranchInstruction ins, int trueValue) {
