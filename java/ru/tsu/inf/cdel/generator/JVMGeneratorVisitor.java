@@ -530,4 +530,46 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         }
         
     }
+
+    @Override
+    public void visit(ForStatementNode node) {
+        if (node.getInitialStatement() != null) {
+            node.getInitialStatement().accept(this);
+        }
+        
+        InstructionHandle beginHandle = il.isEmpty() ? null : il.getEnd();
+        
+        node.getCondition().accept(this);
+        
+        if (beginHandle == null) {
+            beginHandle = il.getStart();
+        } else {
+            beginHandle = beginHandle.getNext();
+        }
+        
+        final IF_ICMPEQ loopConditionCheck = new IF_ICMPEQ(null);
+        
+        appendInstruction(new ICONST(0));
+        il.append(loopConditionCheck);
+        
+        node.getLoopStatement().accept(this);
+        
+        if (node.getPostStatement() != null) {
+            node.getPostStatement().accept(this);
+        }
+        
+        il.append(new GOTO(beginHandle));
+        
+        il.addObserver(new InstructionListObserver() {
+
+            @Override
+            public void notify(InstructionList il) {
+                if (loopConditionCheck.getTarget() == null) {
+                    loopConditionCheck.setTarget(il.getEnd());
+                }
+            }
+        });
+    }
+    
+    
 }
