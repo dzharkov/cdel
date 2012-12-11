@@ -1,0 +1,23 @@
+var 
+i,j, n, t: integer;
+a: array[1..100] of integer;
+main {
+    n:=10;
+    for (i:=n; i > 0; i:=i-1) {
+        a[n-i+1]:=i;
+    }
+    
+    for (i:=1; i <= n; i:=i+1) {
+        for (j:=i+1; j <= n; j:=j+1) {
+            if (a[j] < a[i]) {
+                t:=a[i];
+                a[i]:=a[j];
+                a[j]:=t;
+            }
+        }
+    }
+
+    for (i:=1; i<= n; i:=i+1) {
+        write(a[i]);
+    }
+}
