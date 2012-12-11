@@ -47,6 +47,7 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         if (type instanceof ru.tsu.inf.cdel.semantical.type.VoidType) {
             return Type.VOID;
         }
+        
         return new ObjectType("java.lang.Object");
     }
     
@@ -487,8 +488,7 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
                 }
                 
                 addCMPInstruction(ins, 1);
-            }
-            
+            } else     
             if (type.equals(Type.DOUBLE)) {
                 appendInstruction(new DCMPL());
                 int compareValue;
@@ -520,9 +520,8 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
                 appendInstruction(new ICONST(compareValue));
                 
                 addCMPInstruction(new IF_ICMPEQ(null), trueValue);
-            }
-            
-            //TODO: strings
+            } 
+
             return;
         }
         Instruction opIns = null;
@@ -557,8 +556,7 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
                     opIns = null;
                     break;
             }
-        }
-        
+        } else    
         if (type.equals(Type.DOUBLE)) {
             switch (op.getType()) {
                 case Operator.DIVIDE:
@@ -577,6 +575,8 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
                     opIns = null;
                     break;
             }
+        } else if (type.equals(Type.STRING)) {
+            opIns = insF.createInvoke("java.lang.String", "concat", Type.STRING, new Type[] { Type.STRING }, Constants.INVOKEVIRTUAL);
         }
         
         appendInstruction(opIns);
