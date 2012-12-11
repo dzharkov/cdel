@@ -29,6 +29,16 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
     private String className;
     private ASTNode assignExpression = null;
     
+    private ObjectType getObjectTypeByBasic(Type type) {
+        if (type.equals(Type.INT)) {
+            return new ObjectType("java.lang.Integer");
+        } 
+        if (type.equals(Type.DOUBLE)) {
+            return new ObjectType("java.lang.Double");
+        } 
+        return (ObjectType)type;
+    }
+    
     private Type getJVMTypeByOurType(ru.tsu.inf.cdel.semantical.type.Type type) {
         if (type instanceof PrimitiveType) {
             if (type.equals(PrimitiveTypeManager.getInstance().getTypeByName("double"))) {
@@ -46,6 +56,14 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         
         if (type instanceof ru.tsu.inf.cdel.semantical.type.VoidType) {
             return Type.VOID;
+        }
+        
+        if (type instanceof ru.tsu.inf.cdel.semantical.type.HashMapType) {
+            ru.tsu.inf.cdel.semantical.type.HashMapType hashMapType = (ru.tsu.inf.cdel.semantical.type.HashMapType)type;
+            Type keyType = getJVMTypeByOurType(hashMapType.getKeyType());
+            Type valueType = getJVMTypeByOurType(hashMapType.getValueType());
+            
+            return new ObjectType("java.util.HashMap");
         }
         
         return new ObjectType("java.lang.Object");
@@ -185,6 +203,17 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
                
         appendInstruction(new MULTIANEWARRAY(cg.getConstantPool().addArrayClass((ArrayType)getJVMTypeByOurType(type)), (short)type.getDims().length));
     }
+    
+    private boolean appendHashMapCreation(ru.tsu.inf.cdel.semantical.type.Type type) {
+        if (type instanceof ru.tsu.inf.cdel.semantical.type.HashMapType) {          
+            appendInstruction(insF.createNew(new ObjectType("java.util.HashMap")));
+            appendInstruction(new DUP());
+            appendInstruction(insF.createInvoke("java.util.HashMap", "<init>", Type.VOID, new Type[] {}, Constants.INVOKESPECIAL));
+            
+            return true;
+        }
+        return false;
+    } 
  
     @Override
     public void visit(ProgramNode node) {
@@ -202,9 +231,18 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         
         for (int i = 0; i < globals.getAmount(); i++) {
             ru.tsu.inf.cdel.semantical.type.Type type = globals.getTypeByIndex(i);
+            boolean was = false;
             if (type instanceof ru.tsu.inf.cdel.semantical.type.ArrayType) {
                 ru.tsu.inf.cdel.semantical.type.ArrayType arrayType = (ru.tsu.inf.cdel.semantical.type.ArrayType)type;
                 appendArrayCreation(arrayType);
+                was = true;
+            }
+            
+            if (appendHashMapCreation(type)) {
+                was = true;
+            }
+            
+            if (was) {
                 appendInstruction(insF.createPutStatic(className, globals.getNameByIndex(i), getJVMTypeByOurType(type)));
             }
         }
@@ -370,6 +408,14 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
             }
         }
     }
+    
+    private void appendWrappingObject(Type type) {
+        if (type.equals(Type.INT) || type.equals(Type.DOUBLE)) {
+            String wrapperClassName = "java.lang." + (type.equals(Type.INT) ? "Integer" : "Double");
+            
+            appendInstruction(insF.createInvoke(wrapperClassName, "valueOf", new ObjectType(wrapperClassName), new Type[] { type }, Constants.INVOKESTATIC));
+        }
+    }
 
     @Override
     public void visit(IndexedVariableNode node) {
@@ -425,6 +471,41 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
             }
             
             appendInstruction(lastInstruction);
+        } else {
+            
+            node.getVariable().accept(this);
+            
+            node.getList().getItem().accept(this);
+            Type keyType = getTypeOfNode(node.getList().getItem());
+            
+            appendWrappingObject(keyType);
+            
+             if (expr!=null) {
+                expr.accept(this);
+
+                Type exprType = getTypeOfNode(expr);
+                
+                appendWrappingObject(exprType);
+                  
+                appendInstruction(insF.createInvoke("java.util.HashMap", "put", Type.OBJECT, new Type[] { Type.OBJECT, Type.OBJECT }, Constants.INVOKEVIRTUAL));
+                
+                appendInstruction(new POP());
+
+            } else {
+                Type typeOf = getJVMTypeByOurType(((ru.tsu.inf.cdel.semantical.type.HashMapType)type).getValueType());
+                
+                appendInstruction(insF.createInvoke("java.util.HashMap", "get", Type.OBJECT, new Type[] { Type.OBJECT }, Constants.INVOKEVIRTUAL));
+                
+                ObjectType objectType = getObjectTypeByBasic(typeOf);
+                
+                appendInstruction(insF.createCast(new ObjectType("java.lang.Object"), objectType));
+                
+                if (!objectType.equals(typeOf)) {
+                    String typeName = typeOf.toString();
+                    appendInstruction(insF.createInvoke(objectType.getClassName(), typeName + "Value", typeOf, new Type[] { }, Constants.INVOKEVIRTUAL));
+                }
+            }
+            
         }
         
     }
