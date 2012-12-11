@@ -1,6 +1,7 @@
 package ru.tsu.inf.cdel.generator;
 
 import java.io.IOException;
+import java.util.HashMap;
 import org.apache.bcel.generic.*;
 import org.apache.bcel.Constants;
 
@@ -12,6 +13,7 @@ import ru.tsu.inf.cdel.semantical.TypeCheckVisitor;
 import ru.tsu.inf.cdel.semantical.Variables;
 import ru.tsu.inf.cdel.semantical.function.Function;
 import ru.tsu.inf.cdel.semantical.function.ReadFunction;
+import ru.tsu.inf.cdel.semantical.function.SrcFunction;
 import ru.tsu.inf.cdel.semantical.function.WriteFunction;
 import ru.tsu.inf.cdel.semantical.type.PrimitiveType;
 import ru.tsu.inf.cdel.semantical.type.PrimitiveTypeManager;
@@ -20,6 +22,7 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
     private TypeCheckVisitor types;
     private DeclarationsVisitor declars;
     private Variables globals, locals;
+    private HashMap< String, Integer > localsIndexes;
     private ClassGen cg;
     private InstructionList il;
     private InstructionFactory insF;
@@ -39,6 +42,10 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         if (type instanceof ru.tsu.inf.cdel.semantical.type.ArrayType) {
             ru.tsu.inf.cdel.semantical.type.ArrayType arrayType = (ru.tsu.inf.cdel.semantical.type.ArrayType)type;
             return new ArrayType(getJVMTypeByOurType(arrayType.getOfType()), arrayType.getDims().length);
+        }
+        
+        if (type instanceof ru.tsu.inf.cdel.semantical.type.VoidType) {
+            return Type.VOID;
         }
         return new ObjectType("java.lang.Object");
     }
@@ -70,6 +77,73 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         return result;
     }
     
+    private Type[] getArgTypes(SrcFunction f) {
+        Type[] arg_types = new Type[f.getParams().getAmount()];
+        for (int i = 0; i < f.getParams().getAmount(); i++) {
+             arg_types[i] = getJVMTypeByOurType(f.getParams().getTypeByIndex(i));
+        }
+        return arg_types;
+    }
+    
+    private void appendMethod(SrcFunction f) {
+        locals = f.getAllVariables();
+        localsIndexes = new HashMap<String, Integer>();
+        
+        Type[] arg_types = getArgTypes(f);
+        String[] arg_names = new String[f.getParams().getAmount()];
+
+        for (int i = 0; i < f.getParams().getAmount(); i++) {
+            arg_names[i] = f.getParams().getNameByIndex(i);
+        }
+        
+        il = new InstructionList();
+        
+        MethodGen mg = new MethodGen(
+                    Constants.ACC_PUBLIC | Constants.ACC_STATIC, 
+                    getJVMTypeByOurType(f.getReturnType()),
+                    arg_types,
+                    arg_names,
+                    f.getName(),
+                    className,
+                    il,
+                    cg.getConstantPool()
+                   );
+        
+        for (int i = 0; i < f.getDeclaredVariables().getAmount(); i++) {
+            mg.addLocalVariable(f.getDeclaredVariables().getNameByIndex(i), 
+                                getJVMTypeByOurType(f.getDeclaredVariables().getTypeByIndex(i)), 
+                                null, null
+                                );
+        }
+        
+        for (int i = 0; i < mg.getLocalVariables().length; i++) {
+            localsIndexes.put(mg.getLocalVariables()[i].getName(), mg.getLocalVariables()[i].getIndex());
+            if (mg.getLocalVariables()[i].getType() instanceof ArrayType) {
+                appendArrayCreation((ru.tsu.inf.cdel.semantical.type.ArrayType)locals.getTypeByName(mg.getLocalVariables()[i].getName()));
+                il.append(new ASTORE(mg.getLocalVariables()[i].getIndex()));
+            }
+        }
+        
+        f.getBlock().accept(this);
+        
+        if (!(f.getReturnType() instanceof ru.tsu.inf.cdel.semantical.type.VoidType)) {
+            appendLocalVariableLoad(localsIndexes.get("result"), getJVMTypeByOurType(f.getReturnType()));
+            
+            if (mg.getReturnType().equals(Type.INT)) {
+                appendInstruction(InstructionConstants.IRETURN);
+            } else if (mg.getReturnType().equals(Type.DOUBLE)) {
+                appendInstruction(InstructionConstants.DRETURN);
+            } else {
+                appendInstruction(InstructionConstants.ARETURN);
+            }
+        } else {
+            appendInstruction(InstructionConstants.RETURN);
+        }
+        mg.setMaxStack();
+        cg.addMethod(mg.getMethod());
+        
+        il.dispose();
+    }    
     public void generate(String sourceFilename, String className, String path, ASTNode root, DeclarationsVisitor declars, TypeCheckVisitor types) throws IOException{
         this.cg = new ClassGen(className, "java.lang.Object",
                                     sourceFilename, Constants.ACC_PUBLIC | Constants.ACC_SUPER,
@@ -86,9 +160,19 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         }
         
         globals = declars.getVars();
+        
+        for (Function f : declars.getFuncMap().values()) {
+            if (f instanceof SrcFunction) {
+                appendMethod((SrcFunction)f);
+            }
+        }
+        
         locals = new Variables();
         
         root.accept(this);
+        
+        
+        
         cg.getJavaClass().dump(path + "/" + className + ".class");
     }
     
@@ -136,6 +220,11 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
         
         il.dispose();
         
+    }
+
+    @Override
+    public void visit(BlockNode node) {
+        node.getStatement().accept(this);
     }
 
     @Override
@@ -204,6 +293,19 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
             }
             return;
         }
+        
+        SrcFunction srcFunc = (SrcFunction)func;
+        
+        Type retType = getJVMTypeByOurType(srcFunc.getReturnType());
+        
+        for (ASTNode param : params) {
+            param.accept(this);
+        }
+        
+        appendInstruction(
+                insF.createInvoke(className, srcFunc.getName(), retType, getArgTypes(srcFunc), Constants.INVOKESTATIC)
+        );
+        
     }
 
     @Override
@@ -215,15 +317,30 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
     public void visit(ProcedureStatementNode node) {
         functionCall(node.getIdent().getLexemeValue(), node.getList().getChildren());
     }
+    
+    private void appendLocalVariableLoad(int index, Type type) {
+        Instruction ins = new ALOAD(index);
+        if (type.equals(Type.INT)) {
+            ins = new ILOAD(index);
+        }
+        if (type.equals(Type.DOUBLE)) {
+            ins = new DLOAD(index);
+        }
+        appendInstruction(ins);
+    }
 
     @Override
     public void visit(IdentVariableNode node) {
         String name = node.getIdent().getLexemeValue();
         
         boolean is_local = false;
+        int index=-1;
+        
+        Type type = getTypeOfNode(node);
         
         if (locals.ifExists(name)) {
             is_local = true;
+            index = localsIndexes.get(name);
         }
         
         if (assignExpression != null) {
@@ -233,15 +350,22 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
             expr.accept(this);
             
             if (is_local) {
-                
+                Instruction ins = new ASTORE(index);
+                if (type.equals(Type.INT)) {
+                    ins = new ISTORE(index);
+                }
+                if (type.equals(Type.DOUBLE)) {
+                    ins = new DSTORE(index);
+                }
+                appendInstruction(ins);
             } else {
                 appendInstruction(insF.createPutStatic(className, name, getTypeOfNode(expr)));
             }
         } else {
             if (is_local) {
-                
+                appendLocalVariableLoad(index, type);
             } else {
-                appendInstruction(insF.createGetStatic(className, name, getTypeOfNode(node)));
+                appendInstruction(insF.createGetStatic(className, name, type));
             }
         }
     }
@@ -570,6 +694,4 @@ public class JVMGeneratorVisitor extends ASTNodeVisitor {
             }
         });
     }
-    
-    
 }
