@@ -1,0 +1,6 @@
+var
+m: map of string, integer;
+main {
+m['test'] := 1;
+write(m['test']);
+}
