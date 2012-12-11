@@ -1,0 +1,8 @@
+var
+a,b,c: string;
+main {
+a:='abc';
+b:='def';
+c:=a+b;
+write(c);
+}
