@@ -14,8 +14,6 @@ import ru.tsu.inf.cdel.semantical.function.Function;
 
 public class Main {
     
-    private static TypeCheckVisitor vis;
-    
     public static void main(String[] args) throws FileNotFoundException, IOException {
         if (args.length < 1)
         {
@@ -60,11 +58,6 @@ public class Main {
             System.exit(1);
         }
         
-        for (Function f : declars.getFuncMap().values()) {
-            System.out.println(f);
-        }
-        
-        System.out.println(declars.getVars());
         
         TypeCheckVisitor typeCheckVisitor = new TypeCheckVisitor(declars);
         
@@ -76,22 +69,9 @@ public class Main {
             }
             System.exit(1);
         }
-        vis = typeCheckVisitor;
-        printASTTree(root, "");
         
         JVMGeneratorVisitor visitor = new JVMGeneratorVisitor();
-        visitor.generate(args[0], "test", ".", root, declars, typeCheckVisitor);
+        visitor.generate(args[0], "Main", ".", root, declars, typeCheckVisitor);
         
-    }
-       
-    private static void printASTTree(ASTNode root, String prefix) {
-        String tmp = prefix + root.getNodeInfo();
-        if (vis.getType(root) != null) {
-            tmp += "[" + vis.getType(root) + "]";
-        }
-        System.out.println(tmp);
-        for (ASTNode child : root.getChildren()) {
-            printASTTree(child, prefix + "----");
-        }
     }
 }
